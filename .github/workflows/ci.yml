@@ -13,7 +13,10 @@ env:
   RG:          rg-smart-retail
 
 jobs:
-  # ── 1. Test ────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────
+  # JOB 1 – Run Tests
+  # Runs on every push / PR. No secrets required.
+  # ────────────────────────────────────────────────────────────────
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -40,22 +43,42 @@ jobs:
           APP_ENV: test
           LOG_LEVEL: WARNING
 
-  # ── 2. Build & Push Docker image ──────────────────────────────
+  # ────────────────────────────────────────────────────────────────
+  # JOB 2 – Build & Push Docker image to ACR
+  # Only runs on main branch pushes (not PRs).
+  # Skips gracefully if ACR_USERNAME secret is not configured yet.
+  # ────────────────────────────────────────────────────────────────
   build:
     name: Build & Push Image
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main'
+    # Only run on direct pushes to main (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
+      acr_configured: ${{ steps.check.outputs.configured }}
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if ACR secrets are configured
+        id: check
+        run: |
+          if [ -n "${{ secrets.ACR_USERNAME }}" ] && [ -n "${{ secrets.ACR_PASSWORD }}" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+            echo "ACR secrets found – will build and push image"
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "ACR secrets not configured – skipping Docker build"
+            echo "To enable: add ACR_USERNAME and ACR_PASSWORD in repo Settings > Secrets"
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.check.outputs.configured == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Azure Container Registry
+        if: steps.check.outputs.configured == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_NAME }}.azurecr.io
@@ -64,6 +87,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
+        if: steps.check.outputs.configured == 'true'
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}
@@ -72,6 +96,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
+        if: steps.check.outputs.configured == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -80,20 +105,37 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── 3. Deploy to Azure Container Apps ─────────────────────────
+  # ────────────────────────────────────────────────────────────────
+  # JOB 3 – Deploy to Azure Container Apps
+  # Only runs when build job ran AND Azure credentials are configured.
+  # ────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Azure
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
+      - name: Check if Azure credentials are configured
+        id: check
+        run: |
+          if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+            echo "Azure credentials found – will deploy"
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "AZURE_CREDENTIALS secret not configured – skipping deploy"
+            echo "To enable: add AZURE_CREDENTIALS in repo Settings > Secrets"
+          fi
+
       - name: Azure Login
+        if: steps.check.outputs.configured == 'true'
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Container Apps
+        if: steps.check.outputs.configured == 'true'
         uses: azure/container-apps-deploy-action@v1
         with:
           resourceGroup:        ${{ env.RG }}
