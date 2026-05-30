@@ -13,22 +13,30 @@ logger = logging.getLogger(__name__)
 
 # Intent keywords for routing
 DEMAND_KEYWORDS = [
-    "forecast", "demand", "predict", "sales", "trend", "inventory",
+    "forecast", "demand", "predict", "trend", "inventory",
     "stock", "reorder", "supply", "units", "quantity next",
+    "sales forecast", "sales trend", "sales prediction",
 ]
 ANOMALY_KEYWORDS = [
     "anomaly", "anomalies", "unusual", "spike", "drop", "alert",
     "outlier", "abnormal", "suspicious", "detect",
+    "strange", "weird", "unexpected", "irregular",
 ]
 
 
 def _classify_intent(message: str) -> str:
-    """Simple keyword-based intent classifier."""
+    """Simple keyword-based intent classifier.
+
+    Anomaly intent wins on a tie because anomaly keywords are more
+    specific than demand keywords (e.g. 'sales' was removed from demand
+    to avoid false matches like 'anomalies in sales').
+    """
     msg = message.lower()
     demand_score = sum(1 for kw in DEMAND_KEYWORDS if kw in msg)
     anomaly_score = sum(1 for kw in ANOMALY_KEYWORDS if kw in msg)
 
-    if anomaly_score > demand_score:
+    # Anomaly wins on tie – anomaly keywords are more specific
+    if anomaly_score >= demand_score and anomaly_score > 0:
         return "anomaly"
     if demand_score > 0:
         return "demand"
