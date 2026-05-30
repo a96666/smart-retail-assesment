@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-retail-api
+    ports:
+      - "8000:8000"
+    environment:
+      # ── Neon PostgreSQL ──────────────────────────────────────────
+      # Paste your full Neon connection string here
+      - DATABASE_URL=${DATABASE_URL}
+
+      # ── Azure OpenAI (optional) ──────────────────────────────────
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4o}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-01}
+      - AZURE_OPENAI_EMBEDDING_DEPLOYMENT=${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-text-embedding-ada-002}
+
+      # ── Azure AI Search (RAG vector store) ──────────────────────
+      - AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT:-}
+      - AZURE_SEARCH_API_KEY=${AZURE_SEARCH_API_KEY:-}
+      - AZURE_SEARCH_INDEX_NAME=${AZURE_SEARCH_INDEX_NAME:-retail-knowledge-base}
+
+      # ── Azure Blob Storage ───────────────────────────────────────
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - AZURE_BLOB_CONTAINER=${AZURE_BLOB_CONTAINER:-smart-retail-ai}
+
+      # ── App ──────────────────────────────────────────────────────
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+    volumes:
+      # Persist ML models and vector store between restarts
+      - retail_models:/app/ml_models
+      - retail_vectorstore:/app/vectorstore
+      - retail_docs:/app/docs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  retail_models:
+  retail_vectorstore:
+  retail_docs:

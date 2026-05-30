@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Retail Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white; padding: 18px 32px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header span { font-size: 0.85rem; opacity: 0.7; }
+    .badge {
+      background: #e94560; color: white; font-size: 0.7rem;
+      padding: 2px 8px; border-radius: 12px; font-weight: 600;
+    }
+    nav {
+      background: white; border-bottom: 1px solid #e0e0e0;
+      display: flex; gap: 0; padding: 0 32px;
+    }
+    nav button {
+      background: none; border: none; padding: 14px 20px;
+      cursor: pointer; font-size: 0.9rem; color: #666;
+      border-bottom: 3px solid transparent; transition: all 0.2s;
+    }
+    nav button.active { color: #0f3460; border-bottom-color: #e94560; font-weight: 600; }
+    nav button:hover { color: #0f3460; }
+    .container { max-width: 1100px; margin: 28px auto; padding: 0 24px; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .card {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #0f3460; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .metric {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-align: center;
+    }
+    .metric .value { font-size: 2rem; font-weight: 700; color: #0f3460; }
+    .metric .label { font-size: 0.8rem; color: #888; margin-top: 4px; }
+    .metric.alert .value { color: #e94560; }
+    input, textarea, select {
+      width: 100%; padding: 10px 14px; border: 1px solid #ddd;
+      border-radius: 8px; font-size: 0.9rem; margin-bottom: 12px;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #0f3460; }
+    button.btn {
+      background: #0f3460; color: white; border: none;
+      padding: 10px 22px; border-radius: 8px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 600; transition: background 0.2s;
+    }
+    button.btn:hover { background: #e94560; }
+    button.btn:disabled { background: #aaa; cursor: not-allowed; }
+    .result-box {
+      background: #f8f9ff; border: 1px solid #e0e4ff;
+      border-radius: 8px; padding: 16px; margin-top: 14px;
+      white-space: pre-wrap; font-size: 0.88rem; line-height: 1.6;
+      max-height: 320px; overflow-y: auto;
+    }
+    .chat-box {
+      height: 340px; overflow-y: auto; border: 1px solid #e0e0e0;
+      border-radius: 8px; padding: 14px; margin-bottom: 12px;
+      background: #fafafa;
+    }
+    .msg { margin-bottom: 12px; }
+    .msg.user .bubble {
+      background: #0f3460; color: white; border-radius: 16px 16px 4px 16px;
+      padding: 10px 14px; display: inline-block; max-width: 80%; font-size: 0.88rem;
+    }
+    .msg.agent .bubble {
+      background: white; border: 1px solid #e0e0e0;
+      border-radius: 16px 16px 16px 4px;
+      padding: 10px 14px; display: inline-block; max-width: 85%; font-size: 0.88rem;
+    }
+    .msg.user { text-align: right; }
+    .agent-tag {
+      font-size: 0.72rem; color: #888; margin-bottom: 3px;
+    }
+    .chat-input-row { display: flex; gap: 10px; }
+    .chat-input-row input { margin-bottom: 0; flex: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: #f0f2f5; padding: 10px 12px; text-align: left; font-weight: 600; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8f9ff; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .tag.anomaly { background: #ffe0e0; color: #c0392b; }
+    .tag.normal { background: #e0f5e0; color: #27ae60; }
+    .loading { color: #888; font-style: italic; font-size: 0.85rem; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 700px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🛒 Smart Retail Assistant</h1>
+    <span>Multi-Agent AI Platform &nbsp;|&nbsp; Left Shift Program 2026 – T5</span>
+  </div>
+  <span class="badge">LIVE</span>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('dashboard')">📊 Dashboard</button>
+  <button onclick="showTab('forecast')">📈 Demand Forecast</button>
+  <button onclick="showTab('anomaly')">🚨 Anomaly Detection</button>
+  <button onclick="showTab('agent')">🤖 AI Assistant</button>
+  <button onclick="showTab('search')">🔍 Knowledge Search</button>
+</nav>
+
+<div class="container">
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="section active">
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="value" id="m-revenue">—</div>
+        <div class="label">Revenue (30 days)</div>
+      </div>
+      <div class="metric">
+        <div class="value" id="m-transactions">—</div>
+        <div class="label">Transactions (30 days)</div>
+      </div>
+      <div class="metric alert">
+        <div class="value" id="m-anomalies">—</div>
+        <div class="label">Anomaly Alerts (7 days)</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <h2>Top Products by Revenue</h2>
+        <table>
+          <thead><tr><th>Product</th><th>Revenue</th><th>Units</th></tr></thead>
+          <tbody id="top-products-table"><tr><td colspan="3" class="loading">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Revenue by Category</h2>
+        <div id="category-chart" style="font-size:0.85rem;"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Daily Revenue Trend (Last 14 Days)</h2>
+      <canvas id="trend-chart" height="80"></canvas>
+    </div>
+  </div>
+
+  <!-- FORECAST -->
+  <div id="tab-forecast" class="section">
+    <div class="card">
+      <h2>📈 Demand Forecasting</h2>
+      <label style="font-size:0.85rem;font-weight:600;">Product ID</label>
+      <input id="fc-product" value="P001" placeholder="e.g. P001" />
+      <label style="font-size:0.85rem;font-weight:600;">Forecast Days</label>
+      <input id="fc-days" type="number" value="7" min="1" max="30" />
+      <button class="btn" onclick="runForecast()">Generate Forecast</button>
+      <div id="fc-result" class="result-box" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- ANOMALY -->
+  <div id="tab-anomaly" class="section">
+    <div class="card">
+      <h2>🚨 Anomaly Detection</h2>
+      <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">
+        Paste JSON array of sales records or use the sample data below.
+      </p>
+      <textarea id="anomaly-input" rows="6" placeholder='[{"product_id":"P001","date":"2024-06-01","quantity":250}]'></textarea>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" onclick="loadSampleAnomalyData()">Load Sample Data</button>
+        <button class="btn" onclick="runAnomalyDetection()">Detect Anomalies</button>
+      </div>
+      <div id="anomaly-result" style="margin-top:16px;display:none;">
+        <div id="anomaly-summary" style="margin-bottom:12px;font-size:0.9rem;"></div>
+        <table>
+          <thead><tr><th>Product</th><th>Date</th><th>Quantity</th><th>Score</th><th>Status</th></tr></thead>
+          <tbody id="anomaly-table"></tbody>
+        </table>
+        <div class="result-box" id="anomaly-insight" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT CHAT -->
+  <div id="tab-agent" class="section">
+    <div class="card">
+      <h2>🤖 Multi-Agent AI Assistant</h2>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:12px;">
+        Ask about demand forecasts, anomalies, inventory, or any retail question.
+        The orchestrator routes your query to the right agent automatically.
+      </p>
+      <div class="chat-box" id="chat-box"></div>
+      <div class="chat-input-row">
+        <input id="chat-input" placeholder="Ask anything... e.g. 'What is the demand forecast for P001?'"
+          onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button class="btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="tab-search" class="section">
+    <div class="card">
+      <h2>🔍 Knowledge Base Search</h2>
+      <input id="search-query" placeholder="e.g. return policy, delivery options, loyalty program" />
+      <button class="btn" onclick="runSearch()">Search</button>
+      <div id="search-results" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = '';  // same origin
+
+  // ── Tab navigation ──────────────────────────────────────────────
+  function showTab(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'dashboard') loadDashboard();
+  }
+
+  // ── Dashboard ───────────────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const res = await fetch(API + '/api/dashboard');
+      if (!res.ok) { showDashboardEmpty(); return; }
+      const d = await res.json();
+
+      document.getElementById('m-revenue').textContent =
+        '$' + d.total_revenue_30d.toLocaleString(undefined, {maximumFractionDigits: 0});
+      document.getElementById('m-transactions').textContent =
+        d.total_transactions_30d.toLocaleString();
+      document.getElementById('m-anomalies').textContent = d.anomaly_count_7d;
+
+      // Top products table
+      const tbody = document.getElementById('top-products-table');
+      if (d.top_products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:#aaa">No data yet – run the pipeline first</td></tr>';
+      } else {
+        tbody.innerHTML = d.top_products.map(p =>
+          `<tr><td>${p.product_name}</td><td>$${p.total_revenue.toLocaleString()}</td><td>${p.total_quantity}</td></tr>`
+        ).join('');
+      }
+
+      // Category chart (simple bar)
+      const catDiv = document.getElementById('category-chart');
+      const cats = Object.entries(d.revenue_by_category).sort((a,b) => b[1]-a[1]);
+      const maxVal = cats.length ? cats[0][1] : 1;
+      catDiv.innerHTML = cats.map(([cat, rev]) => `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span>${cat}</span><span>$${rev.toLocaleString()}</span>
+          </div>
+          <div style="background:#f0f2f5;border-radius:4px;height:8px;">
+            <div style="background:#0f3460;height:8px;border-radius:4px;width:${Math.round(rev/maxVal*100)}%"></div>
+          </div>
+        </div>`).join('') || '<span style="color:#aaa">No data yet</span>';
+
+      // Trend chart
+      drawTrendChart(d.daily_revenue_trend);
+    } catch(e) {
+      showDashboardEmpty();
+    }
+  }
+
+  function showDashboardEmpty() {
+    document.getElementById('m-revenue').textContent = '$0';
+    document.getElementById('m-transactions').textContent = '0';
+    document.getElementById('m-anomalies').textContent = '0';
+    document.getElementById('top-products-table').innerHTML =
+      '<tr><td colspan="3" style="color:#aaa">Run pipeline/run_pipeline.py to seed data</td></tr>';
+  }
+
+  function drawTrendChart(trend) {
+    const canvas = document.getElementById('trend-chart');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth || 600;
+    canvas.height = 120;
+    if (!trend || trend.length === 0) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = '13px Segoe UI';
+      ctx.fillText('No trend data available', 20, 60);
+      return;
+    }
+    const vals = trend.map(t => t.revenue);
+    const maxV = Math.max(...vals) || 1;
+    const minV = Math.min(...vals);
+    const W = canvas.width, H = canvas.height;
+    const pad = { l: 50, r: 20, t: 10, b: 30 };
+    const chartW = W - pad.l - pad.r;
+    const chartH = H - pad.t - pad.b;
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + (chartH / 4) * i;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    }
+
+    // Line
+    ctx.strokeStyle = '#0f3460'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    trend.forEach((pt, i) => {
+      const x = pad.l + (i / (trend.length - 1 || 1)) * chartW;
+      const y = pad.t + chartH - ((pt.revenue - minV) / (maxV - minV || 1)) * chartH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    ctx.fillStyle = '#e94560';
+    trend.forEach((pt, i) => {
+      const x = pad.l + (i / (trend.length - 1 || 1)) * chartW;
+      const y = pad.t + chartH - ((pt.revenue - minV) / (maxV - minV || 1)) * chartH;
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // X labels (every other)
+    ctx.fillStyle = '#888'; ctx.font = '10px Segoe UI'; ctx.textAlign = 'center';
+    trend.forEach((pt, i) => {
+      if (i % 2 === 0) {
+        const x = pad.l + (i / (trend.length - 1 || 1)) * chartW;
+        ctx.fillText(pt.date.slice(5), x, H - 6);
+      }
+    });
+  }
+
+  // ── Demand Forecast ─────────────────────────────────────────────
+  async function runForecast() {
+    const productId = document.getElementById('fc-product').value.trim() || 'P001';
+    const days = document.getElementById('fc-days').value || 7;
+    const resultBox = document.getElementById('fc-result');
+    resultBox.style.display = 'block';
+    resultBox.textContent = 'Generating forecast...';
+    try {
+      const res = await fetch(`${API}/api/predict?product_id=${productId}&days=${days}`);
+      const data = await res.json();
+      if (!res.ok) { resultBox.textContent = 'Error: ' + (data.detail || 'Unknown error'); return; }
+      let text = `Demand Forecast for ${data.product_id} (${data.forecast_days} days)\n`;
+      text += '─'.repeat(50) + '\n';
+      text += `${'Date'.padEnd(14)}${'Predicted'.padEnd(12)}${'Lower'.padEnd(10)}Upper\n`;
+      text += '─'.repeat(50) + '\n';
+      data.forecast.forEach(f => {
+        text += `${f.date.padEnd(14)}${String(f.predicted_demand).padEnd(12)}${String(f.lower).padEnd(10)}${f.upper}\n`;
+      });
+      resultBox.textContent = text;
+    } catch(e) {
+      resultBox.textContent = 'Failed to connect to API. Is the server running?';
+    }
+  }
+
+  // ── Anomaly Detection ───────────────────────────────────────────
+  function loadSampleAnomalyData() {
+    const sample = [];
+    const products = ['P001','P002','P003','P004','P005'];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(2024, 5, i + 1);
+      const dateStr = d.toISOString().slice(0,10);
+      products.forEach(pid => {
+        const qty = Math.random() < 0.05 ? Math.floor(Math.random()*300+200) : Math.floor(Math.random()*60+10);
+        sample.push({ product_id: pid, date: dateStr, quantity: qty });
+      });
+    }
+    document.getElementById('anomaly-input').value = JSON.stringify(sample.slice(0, 20), null, 2);
+  }
+
+  async function runAnomalyDetection() {
+    const raw = document.getElementById('anomaly-input').value.trim();
+    if (!raw) { alert('Please enter or load sample data first.'); return; }
+    let records;
+    try { records = JSON.parse(raw); } catch(e) { alert('Invalid JSON format.'); return; }
+
+    const resultDiv = document.getElementById('anomaly-result');
+    resultDiv.style.display = 'block';
+    document.getElementById('anomaly-summary').textContent = 'Detecting anomalies...';
+    document.getElementById('anomaly-table').innerHTML = '';
+    document.getElementById('anomaly-insight').textContent = '';
+
+    try {
+      const res = await fetch(API + '/api/anomaly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records }),
+      });
+      const data = await res.json();
+      if (!res.ok) { document.getElementById('anomaly-summary').textContent = 'Error: ' + (data.detail || 'Unknown'); return; }
+
+      document.getElementById('anomaly-summary').innerHTML =
+        `<strong>${data.anomaly_count}</strong> anomalies detected out of <strong>${data.total_records}</strong> records`;
+
+      const tbody = document.getElementById('anomaly-table');
+      tbody.innerHTML = data.anomalies.map(a => `
+        <tr>
+          <td>${a.product_id}</td>
+          <td>${a.date}</td>
+          <td>${a.quantity}</td>
+          <td>${a.anomaly_score.toFixed(3)}</td>
+          <td><span class="tag ${a.is_anomaly ? 'anomaly' : 'normal'}">${a.is_anomaly ? '⚠ Anomaly' : '✓ Normal'}</span></td>
+        </tr>`).join('');
+
+      document.getElementById('anomaly-insight').textContent = data.insight;
+    } catch(e) {
+      document.getElementById('anomaly-summary').textContent = 'Failed to connect to API.';
+    }
+  }
+
+  // ── Agent Chat ──────────────────────────────────────────────────
+  let sessionId = null;
+
+  function appendMessage(role, text, agentName) {
+    const box = document.getElementById('chat-box');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    if (role === 'agent' && agentName) {
+      div.innerHTML = `<div class="agent-tag">🤖 ${agentName}</div><div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+    } else {
+      div.innerHTML = `<div class="bubble">${text}</div>`;
+    }
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    appendMessage('user', msg);
+
+    const thinking = document.createElement('div');
+    thinking.className = 'msg agent';
+    thinking.innerHTML = '<div class="bubble loading">Thinking...</div>';
+    document.getElementById('chat-box').appendChild(thinking);
+
+    try {
+      const res = await fetch(API + '/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, session_id: sessionId }),
+      });
+      const data = await res.json();
+      thinking.remove();
+      if (!res.ok) { appendMessage('agent', 'Error: ' + (data.detail || 'Unknown'), 'System'); return; }
+      sessionId = data.session_id;
+      appendMessage('agent', data.response, data.agent);
+    } catch(e) {
+      thinking.remove();
+      appendMessage('agent', 'Could not reach the API server. Make sure it is running.', 'System');
+    }
+  }
+
+  // ── Knowledge Search ────────────────────────────────────────────
+  async function runSearch() {
+    const q = document.getElementById('search-query').value.trim();
+    if (!q) return;
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<span class="loading">Searching...</span>';
+    try {
+      const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&k=3`);
+      const data = await res.json();
+      if (!res.ok) { resultsDiv.innerHTML = 'Error: ' + (data.detail || 'Unknown'); return; }
+      if (data.results.length === 0) {
+        resultsDiv.innerHTML = '<span style="color:#aaa">No results found. Run the pipeline to build the knowledge base.</span>';
+        return;
+      }
+      resultsDiv.innerHTML = data.results.map((r, i) => `
+        <div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <strong style="color:#0f3460;">${r.source}</strong>
+            <span style="font-size:0.75rem;color:#888;">Score: ${r.score.toFixed(3)}</span>
+          </div>
+          <p style="font-size:0.87rem;line-height:1.6;color:#444;">${r.content}</p>
+        </div>`).join('');
+    } catch(e) {
+      resultsDiv.innerHTML = 'Failed to connect to API.';
+    }
+  }
+
+  // ── Init ────────────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    loadDashboard();
+    // Seed chat with a welcome message
+    appendMessage('agent',
+      'Hi! I\'m your Smart Retail Assistant.\n\nYou can ask me about:\n• Demand forecasts ("What is the forecast for P001?")\n• Anomaly alerts ("Are there any unusual sales patterns?")\n• Store policies ("What is the return policy?")\n• Inventory ("Should I reorder product P003?")',
+      'Orchestrator'
+    );
+  });
+</script>
+</body>
+</html>
